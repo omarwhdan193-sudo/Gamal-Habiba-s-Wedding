@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Habiba & Gamal - wedding Invitation</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:,">
+
+    <!-- 1️⃣ مكتبات Firebase الأساسية في الـ head -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        :root {
+            --bg-color: transparent;
+            --navy: #6b0f1a;
+            --navy-light: #800020;
+            --gold: #d4af37;
+            --gold-light: #f4e8c1;
+            --text-dark: #6b0f1a;
+            --text-muted: #6b0f1a;
+            --card-bg: rgba(255, 255, 255, 0.4);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-image: url('bg-frame.png') !important;
+            background-size: 100% auto !important;
+            background-position: top center !important;
+            background-repeat: repeat-y !important;
+            background-attachment: scroll !important;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            min-height: 100vh;
+            background-color: #fdfbf7;
+        }
+
+        h1, h2, h3, h4, h5, h6, p, span, div, label, li {
+            color: #6b0f1a !important;
+        }
+
+        /* 2️⃣ تجهيز الدعوة عشان تطلع من تحت لفوق كأنها بتتسحب من الظرف */
+        .mobile-container {
+            width: 100%;
+            max-width: 430px;
+            background-color: transparent !important;
+            background-image: none !important;
+            min-height: 100vh;
+            position: relative;
+            box-shadow: none !important;
+            margin: 0 auto;
+            padding-bottom: 70px;
+            overflow: visible !important;
+            display: none; 
+            opacity: 0; 
+            transform: translateY(150px) scale(0.9); /* بتبدأ من تحت وصغيرة شوية */
+            transition: opacity 1s ease-out, transform 1.2s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        /* =========================================
+           شاشة الفيديو الافتتاحية وتأثير التصغير
+           ========================================= */
+        .video-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #1a0508;
+            z-index: 9999;
+            display: flex; justify-content: center; align-items: center;
+            /* سرعة ونعومة اختفاء الفيديو وتصغيره */
+            transition: opacity 1.2s ease-in-out, transform 1.2s ease-in-out, visibility 1.2s;
+        }
+        
+        .video-overlay.opened {
+            opacity: 0;
+            transform: scale(0.7); /* الفيديو يقل حجمه وهو بيختفي */
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .intro-video {
+            width: 100%; max-width: 430px; height: 100%; 
+            object-fit: cover;
+            cursor: pointer;
+        }
+
+        .click-text {
+            position: absolute; top: 62%; left: 50%;
+            transform: translateX(-50%);
+            color: #d4af37 !important;
+            font-family: 'Cairo', sans-serif; font-size: 20px; font-weight: bold;
+            z-index: 5; animation: pulseText 1.5s infinite;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+            white-space: nowrap; pointer-events: none;
+        }
+
+        @keyframes pulseText { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+        /* ========================================= */
+
+        /* Floating Music Toggle */
+        .audio-control {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            width: 45px;
+            height: 45px;
+            background: #6b0f1a;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            cursor: pointer;
+            z-index: 100;
+            border: 2px solid #fff;
+            transition: transform 0.3s;
+        }
+
+        .audio-control:hover { transform: scale(1.1); }
+
+        .animated-section { opacity: 0; transform: translateY(30px); transition: all 0.8s ease-out; }
+        .animated-section.active, .animated-section.visible { opacity: 1; transform: translateY(0); }
+
+        .hero-section { padding: 40px 20px 20px; text-align: center; }
+        .floral-frame { border: none !important; border-radius: 0 !important; padding: 20px 10px !important; background: transparent !important; box-shadow: none !important; transition: transform 0.5s ease; }
+        .hero-names { font-family: 'Cinzel', serif; font-size: 32px; color: #6b0f1a !important; letter-spacing: 3px; margin: 10px 0; text-transform: uppercase; }
+        .ampersand { font-family: 'Playfair Display', serif; font-style: italic; font-size: 24px; color: #6b0f1a !important; margin: 5px 0; }
+
+        .section-title { font-family: 'Cinzel', serif; color: #6b0f1a !important; text-align: center; font-size: 20px; letter-spacing: 2px; margin: 30px 0 10px; text-transform: uppercase; font-weight: 700; }
+        .subtitle { text-align: center; font-family: 'Montserrat', sans-serif; font-size: 12px; color: #6b0f1a !important; letter-spacing: 1px; margin-bottom: 25px; text-transform: uppercase; }
+        
+        .divider { text-align: center; margin: 25px 0; opacity: 0.8; }
+        .divider svg { width: 150px; height: auto; }
+
+        .couple-names { text-align: center; margin: 20px 0; color: #6b0f1a !important; }
+        .person-name { font-size: 36px; color: #6b0f1a !important; font-family: 'Playfair Display', serif; }
+        .person-role { font-family: 'Montserrat', sans-serif; font-size: 12px; letter-spacing: 3px; color: #6b0f1a !important; margin-top: 4px; }
+
+        .single-frame-container { display: flex; justify-content: center; align-items: center; margin: 25px auto; }
+        .oval-photo { width: 220px; height: 280px; object-fit: cover; border-radius: 50%; border: 4px solid var(--gold); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15), 0 0 0 10px rgba(212, 175, 55, 0.15); transition: transform 0.4s ease; }
+        .oval-photo:hover { transform: scale(1.03); }
+
+        .date-display { text-align: center; font-family: 'Cinzel', serif; font-size: 22px; color: #6b0f1a !important; margin: 15px 0; }
+        
+        .countdown-container { text-align: center; background: rgba(255, 255, 255, 0.5) !important; margin: 0 20px; padding: 15px; border-radius: 12px; border: 1px solid var(--gold); }
+        .countdown-timer { font-family: 'Montserrat', sans-serif; font-size: 16px; color: #6b0f1a !important; font-weight: 500; }
+
+        .calendar-card { background: rgba(255, 255, 255, 0.6) !important; margin: 25px 20px; padding: 20px; border-radius: 12px; border: 1px solid var(--gold); }
+        .calendar-header { text-align: center; font-family: 'Cinzel', serif; color: #6b0f1a !important; margin-bottom: 15px; font-size: 18px; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; gap: 8px; font-family: 'Montserrat', sans-serif; font-size: 13px; }
+        .day-name { font-weight: 600; color: #6b0f1a !important; }
+        .day-number { padding: 6px 0; color: #6b0f1a !important; }
+
+        .btn-container { padding: 0 20px; margin: 20px 0; text-align: center; }
+        .btn-action { width: 100%; background: #6b0f1a !important; color: white !important; border: none; padding: 14px; border-radius: 30px; font-family: 'Cinzel', serif; font-size: 15px; letter-spacing: 1px; cursor: pointer; box-shadow: 0 4px 12px rgba(107, 15, 26, 0.3); margin-bottom: 10px; transition: all 0.3s ease; }
+        .btn-action:hover { background: #800020 !important; transform: translateY(-2px); }
+
+        .venue-info { margin-top: 35px !important; margin-bottom: 20px !important; text-align: center; }
+        .venue-title { font-size: 18px !important; color: #6b0f1a !important; margin: 0 0 8px 0 !important; letter-spacing: 2px !important; }
+        .venue-location { font-size: 20px !important; font-weight: 700 !important; letter-spacing: 2px !important; color: #6b0f1a !important; text-align: center; margin: 0 !important; text-transform: uppercase; }
+        
+        .map-container { margin: 20px; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 2px solid var(--gold); }
+        .map-container iframe { width: 100%; height: 200px; border: none; }
+
+        .palette-container { display: flex; justify-content: center; gap: 12px; margin: 15px 0; }
+        .color-dot { width: 35px; height: 35px; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: transform 0.3s; }
+        .color-dot:hover { transform: scale(1.15); }
+
+        .timeline { position: relative; padding: 0 20px; margin: 20px 0; }
+        .timeline::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: #6b0f1a; opacity: 0.3; }
+        .timeline-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; position: relative; }
+        .timeline-time { width: 42%; text-align: right; font-family: 'Montserrat', sans-serif; font-size: 14px; font-weight: 600; color: #6b0f1a !important; }
+        .timeline-dot { width: 12px; height: 12px; background: #6b0f1a; border-radius: 50%; z-index: 2; }
+        .timeline-title { width: 42%; text-align: left; font-family: 'Playfair Display', serif; font-size: 16px; color: #6b0f1a !important; }
+
+        .guestbook-card { background: rgba(255, 255, 255, 0.6) !important; margin: 20px; padding: 20px; border-radius: 12px; border: 1px solid var(--gold); }
+        .form-input { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid var(--gold); border-radius: 8px; font-family: 'Montserrat', sans-serif; font-size: 14px; outline: none; background: rgba(255, 255, 255, 0.8); }
+        .form-input:focus { border-color: #6b0f1a; }
+        textarea.form-input { height: 80px; resize: none; }
+        .messages-list { margin-top: 20px; max-height: 200px; overflow-y: auto; }
+        .message-item { background: rgba(255, 255, 255, 0.8); padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 3px solid #6b0f1a; font-size: 13px; }
+        .message-author { font-weight: bold; color: #6b0f1a !important; margin-bottom: 2px; }
+        
+        .messages-list::-webkit-scrollbar { width: 5px; }
+        .messages-list::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.05); border-radius: 10px; }
+        .messages-list::-webkit-scrollbar-thumb { background: #6b0f1a; border-radius: 10px; }
+        .message-text { color: #333; line-height: 1.4; word-break: break-word; }
+
+        .active-date { position: relative !important; display: inline-flex !important; justify-content: center; align-items: center; width: 28px; height: 28px; color: #ffffff !important; font-weight: bold; font-size: 13px; z-index: 1; }
+        .active-date::before, .active-date::after { content: ""; position: absolute; top: 2px; width: 15px; height: 24px; border-radius: 15px 15px 0 0; background: #8b0000; z-index: -1; }
+        .active-date::before { left: 14px; transform: rotate(-45deg); transform-origin: 0 100%; }
+        .active-date::after { left: -1px; transform: rotate(45deg); transform-origin: 100% 100%; }
+
+        .petal { position: fixed !important; top: -20px; border-radius: 15px 0 15px 0; opacity: 0.9; pointer-events: none; z-index: 99999 !important; animation: fall linear forwards; }
+        @keyframes fall { 0% { transform: translateY(0) rotate(0deg); opacity: 1; } 100% { transform: translateY(105vh) rotate(360deg); opacity: 0; } }
+
+        .animated-section:not(#rsvp-section) { padding-left: 30px !important; padding-right: 30px !important; box-sizing: border-box !important; }
+        .calendar-card, .map-container, .guestbook-card { margin-left: 10px !important; margin-right: 10px !important; width: calc(100% - 20px) !important; max-width: 100% !important; box-sizing: border-box !important; }
+        #rsvp-section, .guestbook-section { padding-left: 5px !important; padding-right: 5px !important; width: 100% !important; }
+        @media (max-width: 480px) { h2 { font-size: 1.1rem !important; } }
+    </style>
+</head>
+<body>
+
+    <!-- شاشة الفيديو الافتتاحية -->
+    <div class="video-overlay" id="videoOverlay">
+        <video id="introVideo" class="intro-video" src="intro-video.mp4" playsinline preload="auto"></video>
+        <div class="click-text" id="clickText">اضغط لفتح الدعوة</div>
+    </div>
+
+    <!-- Floating Audio Control Button -->
+    <div class="audio-control" onclick="toggleAudio()" title="Toggle Music">
+        <span id="audioIcon">🎵</span>
+    </div>
+    <audio id="bgMusic" loop>
+        <source src="music.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Main Container -->
+    <div class="mobile-container" id="mainContainer">
+        
+        <!-- Hero Section -->
+        <section class="hero-section animated-section">
+            <div class="floral-frame">
+                <div class="hero-names">Gamal</div>
+                <div class="ampersand">&</div>
+                <div class="hero-names">Habiba</div>
+            </div>
+        </section>
+
+         <section class="animated-section">
+         <h2 class="section-title">wedding Info</h2>
+         <p class="subtitle">And here, the most beautiful chapter of our story is written... Welcome to the wedding of Habiba & Gamal</p>
+         </section>
+
+        <!-- Couple Details Section -->
+        <section class="animated-section">
+            <div class="couple-names">
+                <div class="person-name">Gamal</div>
+                <div class="person-role">GROOM</div>
+                <div class="ampersand" style="margin: 10px 0;">&</div>
+                <div class="person-name">Habiba</div>
+                <div class="person-role">BRIDE</div>
+            </div>
+        </section>
+
+        <div class="divider animated-section">
+            <svg viewBox="0 0 200 20">
+                <path d="M0,10 Q50,0 100,10 Q150,20 200,10" fill="none" stroke="var(--navy)" stroke-width="1"/>
+                <circle cx="100" cy="10" r="4" fill="var(--gold)"/>
+            </svg>
+        </div>
+
+        <!-- Photo Gallery Section -->
+        <!-- Single Oval Photo Section -->
+        <section class="animated-section">
+       <p class="arabic-quote" style="text-align: center; font-size: 1.2rem; margin: 15px 0; color: #6b0f1a;">
+    (( وَكَـانَ لِـقَـاؤُنَـا مَـوْعِـدًا مَـكْـتُـوبًا ))
+</p>
+        <div class="single-frame-container">
+        <img src="habiba&gamal.jpg" alt="Habiba & Gamal" class="oval-photo">
+         </div>
+         </section>
+
+        <div class="divider animated-section">
+            <svg viewBox="0 0 200 20">
+                <path d="M0,10 Q50,0 100,10 Q150,20 200,10" fill="none" stroke="var(--navy)" stroke-width="1"/>
+                <circle cx="100" cy="10" r="4" fill="var(--gold)"/>
+            </svg>
+        </div>
+
+      <!-- Reception & Countdown Section -->
+<section class="animated-section" style="padding-left: 45px !important; padding-right: 45px !important; box-sizing: border-box !important;">
+    <h2 style="font-size: 1.15rem !important; letter-spacing: 0.5px !important; margin: 0 auto 10px auto !important; text-align: center !important; line-height: 1.3 !important;">
+        RECEPTION INFO
+    </h2>
+
+    <p style="font-size: 0.85rem !important; letter-spacing: 0.5px !important; line-height: 1.4 !important; margin: 0 auto 15px auto !important; text-align: center !important;">
+        THE RECEPTION WILL TAKE PLACE AT:
+    </p>
+</section>
+            
+            <div class="date-display">8:00</div>
+            <div class="date-display" style="font-size: 20px; font-weight: bold;">
+                Thursday &nbsp;|&nbsp; 19 &nbsp;|&nbsp; November
+            </div>
+            <div class="date-display" style="font-size: 18px;">2026</div>
+
+            <div class="countdown-container">
+                <div style="font-family: 'Cinzel', serif; font-size: 14px; margin-bottom: 5px; color: var(--navy);">COUNTDOWN</div>
+                <div class="countdown-timer" id="timer">Loading...</div>
+            </div>
+        </section>
+
+        <!-- Calendar Widget Section -->
+        <section class="animated-section">
+            <div class="calendar-card">
+                <div class="calendar-header">November 2026</div>
+                <div class="calendar-grid">
+                    <div class="day-name">Mo</div><div class="day-name">Tu</div><div class="day-name">We</div>
+                    <div class="day-name">Th</div><div class="day-name">Fr</div><div class="day-name">Sa</div>
+                    <div class="day-name">Su</div>
+
+                    <div class="day-number"></div><div class="day-number"></div><div class="day-number"></div><div class="day-number"></div><div class="day-number"></div><div class="day-number"></div>
+                    <div class="day-number">1</div>
+                    <div class="day-number">2</div><div class="day-number">3</div><div class="day-number">4</div>
+                    <div class="day-number">5</div><div class="day-number">6</div><div class="day-number">7</div>
+                    <div class="day-number">8</div><div class="day-number">9</div><div class="day-number">10</div>
+                    <div class="day-number">11</div><div class="day-number">12</div><div class="day-number">13</div>
+                    <div class="day-number">14</div><div class="day-number">15</div><div class="day-number">16</div>
+                    <div class="day-number">17</div><div class="day-number">18</div>
+                    
+                    <!-- القلب اتنقل هنا على يوم 20 -->
+                    <div class="calendar-date"><span class="active-date">19</span></div>
+                    <div class="day-number">19</div>
+                    
+                    <div class="day-number">21</div><div class="day-number">22</div>
+                    <div class="day-number">23</div><div class="day-number">24</div><div class="day-number">25</div>
+                    
+                    <div class="day-number">26</div>
+                    <!-- يوم 27 رجع رقم عادي -->
+                    <div class="day-number">27</div>
+                    
+                    <div class="day-number">28</div>
+                    <div class="day-number">29</div><div class="day-number">30</div>
+                </div>
+                </div>
+            </div>
+
+            <div class="btn-container">
+                <button class="btn-action" onclick="addToCalendar()">Add To Calendar</button>
+                <button class="btn-action" style="background: var(--navy-light);" onclick="scrollToRsvp()">Confirm Attendance</button>
+            </div>
+        </section>
+
+        <!-- Venue Map Section -->
+<section class="animated-section">
+    <div class="venue-info">
+        <h2 class="section-title venue-title">Wedding Venue</h2>
+        <p class="venue-location">DIVA ELABD, TANTA</p>
+    </div>
+    
+    <div class="map-container">
+<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3427.016920208185!2d30.93366409999999!3d30.802159799999995!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x14f7cbbd5bacdfff%3A0xb32382cad31cd0ea!2sDIVA%20ELABD!5e0!3m2!1sen!2seg!4v1794437746308!5m2!1sen!2seg" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>    </div>
+</section>
+
+        <!-- Schedule Timeline Section -->
+<section class="animated-section">
+    <h2 class="section-title">Wedding Day Schedule</h2>
+    <div class="timeline">
+        <div class="timeline-item">
+            <div class="timeline-time">8:00</div>
+            <div class="timeline-dot"></div>
+            <div class="timeline-title">Welcome & Entrance</div>
+        </div>
+        <div class="timeline-item">
+            <div class="timeline-time">9:00</div>
+            <div class="timeline-dot"></div>
+            <div class="timeline-title">First Dance & Party</div>
+        </div>
+        
+        <div class="timeline-item">
+            <div class="timeline-time">12:00</div>
+            <div class="timeline-dot"></div>
+            <div class="timeline-title">End</div>
+        </div>
+    </div>
+</section>
+       <!-- Guestbook Section -->
+<section class="animated-section" id="rsvp-section" style="padding-left: 15px !important; padding-right: 15px !important; width: 100% !important; box-sizing: border-box !important;">
+    <h2 class="section-title">Guestbook</h2>
+    <div class="guestbook-card" style="width: 100% !important; max-width: 100% !important; margin: 0 auto !important; box-sizing: border-box !important;">
+        <input type="text" id="guestName" class="form-input" placeholder="Enter your name*">
+        <textarea id="guestWish" class="form-input" placeholder="Enter your wishes*"></textarea>
+        <button class="btn-action" onclick="submitWish()">Send Wishes</button>
+
+        <div class="messages-list" id="messagesList">
+            <div class="message-item">
+                <div class="message-author">omar</div>
+                <div>Congratulations Gamal & Habiba! So happy for you both! ❤️</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+    </div>
+
+    <script>
+        // ==========================================
+        // لوجيك تشغيل الفيديو وتداخل الكارت بشكل سلس
+        // ==========================================
+        const videoOverlay = document.getElementById('videoOverlay');
+        const introVideo = document.getElementById('introVideo');
+        const clickText = document.getElementById('clickText');
+
+        if(videoOverlay) {
+            videoOverlay.addEventListener('click', () => {
+                // إخفاء نص "اضغط لفتح الدعوة"
+                clickText.style.display = 'none';
+                // تشغيل الفيديو
+                introVideo.play();
+            });
+        }
+
+        if(introVideo) {
+            introVideo.onended = function() {
+                // 1. الفيديو يختفي ويصغر بنعومة
+                videoOverlay.classList.add('opened');
+                
+                // 2. إظهار الموقع وسحبه من تحت لفوق كأنه بيطلع من الظرف
+                const mainContainer = document.getElementById('mainContainer');
+                mainContainer.style.display = 'block';
+                
+                // ده سطر برمجي بيجبر المتصفح يفهم إن الـ display اتغير قبل ما يعمل الأنيميشن
+                void mainContainer.offsetWidth; 
+                
+                mainContainer.style.opacity = '1';
+                mainContainer.style.transform = 'translateY(0) scale(1)';
+                
+                // 3. باقي التفاعلات
+                setTimeout(checkAnimations, 300);
+                dropPetals();
+
+                const music = document.getElementById('bgMusic');
+                music.play().then(() => {
+                    isPlaying = true;
+                    document.getElementById('audioIcon').innerText = '🔊';
+                }).catch(e => console.log('Autoplay blocked'));
+            };
+        }
+
+        // Toggle Audio Control
+        let isPlaying = false;
+        function toggleAudio() {
+            const music = document.getElementById('bgMusic');
+            const icon = document.getElementById('audioIcon');
+            if (isPlaying) {
+                music.pause();
+                icon.innerText = '🎵';
+            } else {
+                music.play();
+                icon.innerText = '🔊';
+            }
+            isPlaying = !isPlaying;
+        }
+
+        // Scroll Intersection Observer for Animated Sections Transitions
+        const observerOptions = {
+            root: document.getElementById('mainContainer'),
+            threshold: 0.15
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, observerOptions);
+
+        function checkAnimations() {
+            document.querySelectorAll('.animated-section').forEach(section => {
+                observer.observe(section);
+            });
+        }
+
+        // Countdown Timer Logic
+        const weddingDate = new Date('November 19, 2026 20:00:00').getTime();
+
+        function updateCountdown() {
+            const now = new Date().getTime();
+            const difference = weddingDate - now;
+
+            if (difference > 0) {
+                const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+
+                document.getElementById('timer').innerText = 
+                    `${days} days ${hours} hours ${minutes} min ${seconds} sec`;
+            } else {
+                document.getElementById('timer').innerText = "The Wedding Day is Here!";
+            }
+        }
+        setInterval(updateCountdown, 1000);
+        updateCountdown();
+
+       // Add to Calendar
+function addToCalendar() {
+    const titleText = "Gamal & Habiba's Wedding";
+    const detailsText = "Join us in Celebrating the Wedding of Gamal & Habiba! ❤️";
+    const locationText = "DIVA ELABD, Tanta";
+    const startDate = "20261119T200000"; 
+    const endDate   = "20261119T235900";
+
+    const isAppleDevice = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && !window.MSStream;
+
+    if (isAppleDevice) {
+        const icsData = [
+            "BEGIN:VCALENDAR",
+            "VERSION:2.0",
+            "PRODID:-//Wedding Invitation//EN",
+            "BEGIN:VEVENT",
+            `SUMMARY:${titleText}`,
+            `DESCRIPTION:${detailsText}`,
+            `LOCATION:${locationText}`,
+            `DTSTART:${startDate}`,
+            `DTEND:${endDate}`,
+            "END:VEVENT",
+            "END:VCALENDAR"
+        ].join("\n");
+
+        const blob = new Blob([icsData], { type: "text/calendar;charset=utf-8" });
+        const link = document.createElement("a");
+        link.href = window.URL.createObjectURL(blob);
+        link.setAttribute("download", "Gamal_Habiba_Wedding.ics");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    } else {
+        const title = encodeURIComponent(titleText);
+        const details = encodeURIComponent(detailsText);
+        const location = encodeURIComponent(locationText);
+
+        const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startDate}/${endDate}&details=${details}&location=${location}&ctz=Africa/Cairo`;
+        window.open(calendarUrl, '_blank');
+    }
+}
+
+function scrollToRsvp() {
+    document.getElementById('rsvp-section')?.scrollIntoView({ behavior: 'smooth' });
+}
+
+        function submitWish() {
+            const name = document.getElementById('guestName').value.trim();
+            const wish = document.getElementById('guestWish').value.trim();
+
+            if (!name || !wish) {
+                alert('Please fill in both your name and wishes!');
+                return;
+            }
+
+            const list = document.getElementById('messagesList');
+            const newMsg = document.createElement('div');
+            newMsg.className = 'message-item';
+            newMsg.innerHTML = `<div class="message-author">${escapeHtml(name)}</div><div>${escapeHtml(wish)}</div>`;
+            
+            list.prepend(newMsg);
+
+            document.getElementById('guestName').value = '';
+            document.getElementById('guestWish').value = '';
+            alert('Thank you for your wishes!');
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/[&<>"']/g, function(m) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                }[m];
+            });
+        }
+        
+function dropPetals() {
+    const petalCount = 40; 
+    for (let i = 0; i < petalCount; i++) {
+        setTimeout(() => {
+            const petal = document.createElement('div');
+            petal.className = 'petal';
+            
+            const size = Math.random() * 12 + 10 + 'px';
+            petal.style.width = size;
+            petal.style.height = size;
+            petal.style.left = Math.random() * 100 + 'vw';
+            petal.style.animationDuration = Math.random() * 3 + 2 + 's';
+            
+            const colors = ['#e8a0bf', '#e080a8', '#6b0f1a', '#f7f5eb'];
+            petal.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+
+            document.body.appendChild(petal);
+
+            setTimeout(() => {
+                petal.remove();
+            }, 5000);
+        }, i * 100);
+    }
+}
+
+function revealOnScroll() {
+    const sections = document.querySelectorAll('.animated-section');
+    sections.forEach(section => {
+        const windowHeight = window.innerHeight;
+        const sectionTop = section.getBoundingClientRect().top;
+        if (sectionTop < windowHeight - 50) {
+            section.classList.add('active');
+        }
+    });
+}
+
+window.addEventListener('scroll', revealOnScroll);
+window.addEventListener('load', revealOnScroll);
+    </script>
+    
+    <!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<script>
+    function escapeHtml(text) {
+        if (!text) return '';
+        return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+   const firebaseConfig = {
+  apiKey: "AIzaSyB_etbXlN0tGiQDJgtHoL4E-5fUQKT52-o",
+  authDomain: "habiba-weding.firebaseapp.com",
+  databaseURL: "https://habiba-weding-default-rtdb.firebaseio.com",
+  projectId: "habiba-weding",
+  storageBucket: "habiba-weding.firebasestorage.app",
+  messagingSenderId: "129281995176",
+  appId: "1:129281995176:web:70267bfe05b45ddb34ad9d",
+  measurementId: "G-12QMXLZ45Q"
+};
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+    const database = firebase.database();
+    const messagesRef = database.ref('guestbook');
+
+    function submitWish() {
+        const nameInput = document.getElementById('guestName');
+        const wishInput = document.getElementById('guestWish');
+
+        if (!nameInput || !wishInput) return;
+
+        const name = nameInput.value.trim();
+        const message = wishInput.value.trim();
+
+        if (name === '' || message === '') {
+            alert('برجاء كتابة الاسم والتهنئة!');
+            return;
+        }
+
+        messagesRef.push({
+            name: name,
+            message: message,
+            timestamp: Date.now()
+        }).then(() => {
+            alert('تم إرسال تهنئتك بنجاح! ✨');
+            nameInput.value = '';
+            wishInput.value = '';
+        }).catch((err) => {
+            console.error("خطأ في الإرسال: ", err);
+            alert('حدث خطأ أثناء الإرسال.');
+        });
+    }
+
+    messagesRef.on('value', (snapshot) => {
+        const messagesList = document.getElementById('messagesList');
+        if (!messagesList) return;
+        
+        messagesList.innerHTML = ''; 
+
+        const data = snapshot.val();
+        if (data) {
+            const messageArray = Object.values(data).reverse();
+
+            messageArray.forEach(item => {
+                const msgCard = document.createElement('div');
+                msgCard.className = 'message-item';
+                msgCard.innerHTML = `
+                    <div class="message-author">${escapeHtml(item.name)}</div>
+                    <div>${escapeHtml(item.message)}</div>
+                `;
+                messagesList.appendChild(msgCard);
+            });
+        } else {
+            messagesList.innerHTML = '<p style="text-align:center; font-size:12px; color:#6b0f1a;">كُن أول من يترك تهنئة! ✨</p>';
+        }
+    });
+</script>
+    
+<!-- Footer Section -->
+<footer style="text-align: center; padding: 20px 10px; margin-top: 30px; font-family: sans-serif; font-size: 14px; color: #6b0f1a; opacity: 0.85;">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;">
+        <p style="margin: 0;">Designed & Developed by <strong>Eng. Omar Wahdan</strong></p>
+        
+        <!-- روابط التواصل (واتساب، فيسبوك، وإنستجرام) -->
+        <div style="display: flex; gap: 10px; align-items: center; border-left: 2px solid rgba(107, 15, 26, 0.3); padding-left: 12px;">
+            
+            <!-- WhatsApp -->
+            <a href="https://wa.me/201208224745" target="_blank" style="color: #6b0f1a; transition: transform 0.3s;" title="WhatsApp" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/>
+                </svg>
+            </a>
+            
+            <!-- Facebook -->
+            <a href="https://www.facebook.com/omar.wahdan.5249?mibextid=ZbWKwL" target="_blank" style="color: #6b0f1a; transition: transform 0.3s;" title="Facebook" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                </svg>
+            </a>
+            
+            <!-- Instagram -->
+            <a href="https://www.instagram.com/o_wahdan?mdxt=MWE0bjRxeTczOWw5dQ==" target="_blank" style="color: #6b0f1a; transition: transform 0.3s;" title="Instagram" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
+                </svg>
+            </a>
+            
+        </div>
+    </div>
+</footer>
+</body>
+</html>
